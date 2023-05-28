@@ -1,0 +1,47 @@
+﻿#!/usr/bin/env python3
+
+import utils.logger_utils as logger
+from utils.alation import Alation
+import requests
+requests.packages.urllib3.disable_warnings()
+
+
+def main(settings, *args, **kwargs):
+    alation = Alation(**settings.ALATION_API, name='role_model')
+    base_url = alation.api_entry
+    alation_s = alation.session
+    groups = {group['display_name']: {'id': group['id'], 'name': group['display_name']}
+          for group in alation.get_groups()}
+    policies = {
+            "permissions": {
+                "private": 'true',
+                "private_edit": 'false',
+                "users_can_share": 'true',
+                "allowed_group_editors": [
+                    groups["Metodolog"],
+                ],
+                "allowed_groups": [
+                    groups["Коннектор"],
+                ]
+            }
+        }
+    
+
+    template_name = "Бизнес-глоссарий"
+    custom_template_id = 26
+
+    logger.info('ROLE TEST')
+    with alation_s.get(f"{base_url}/integration/v1/article/?custom_field_templates=[{custom_template_id}]") as r:
+        for article in r.json():
+            logger.info(f"ID {article['id']}")
+            if article['id'] == 149:
+                # неофициальный API
+                with alation_s.patch(f"{base_url}/api/v1/article/{article['id']}/",
+                                     json=policies) as patch_resp:
+                    logger.debug("Title {}".format(article['title']))
+                    logger.debug(patch_resp.status_code)
+                    logger.debug(patch_resp.json())
+
+
+if __name__ == "__main__":
+    main()
